@@ -32,12 +32,12 @@ func PrintHTTP(conn *HttpConnection) {
 	log.Println("==============================")
 	log.Printf("%v %v %v\n", conn.Request.Method, conn.Request.RequestURI, conn.Request.Proto)
 	for k, v := range conn.Request.Header {
-		log.Println(k, ":", v)
+		log.Printf("%v: %v", k, v)
 	}
 	log.Println("------------------------------")
 	log.Printf("HTTP/1.1 %v\n", conn.Response.Status)
 	for k, v := range conn.Response.Header {
-		log.Println(k, ":", v)
+		log.Printf("%v: %v", k, v)
 	}
 	log.Println(conn.Response.Body)
 	log.Println("==============================")
@@ -70,12 +70,12 @@ func (p *Proxy) ServeHTTP(wr http.ResponseWriter, r *http.Request) {
 	defer res.Body.Close()
 
 	conn := &HttpConnection{r, res}
-
 	for k, v := range res.Header {
 		wr.Header().Set(k, v[0])
 	}
-	
+
 	wr.WriteHeader(res.StatusCode)
+
 	io.Copy(wr, res.Body)
 
 	PrintHTTP(conn)
