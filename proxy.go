@@ -6,26 +6,26 @@ import (
 	"net/http"
 )
 
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+// Hop-by-hop headers are meaningful only for a single transport-level connection, 
+// and must not be retransmitted by proxies or cached.
+var hopHeaders = []string {
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Authenticate",
+	"Proxy-Authorization",
+	"Proxy-Connection",	// not standard, but curl lib use it.
+	"Te", // canonicalized version of "TE"
+	"Trailers",
+	"Transfer-Encoding",
+	"Upgrade",
+}
+
 type Proxy struct {}
 
 type HttpConnection struct {
 	Request  *http.Request
 	Response *http.Response
-}
-
-func removeProxyHeaders(r *http.Request) {
-	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers
-	// Hop-by-hop headers
-	//    These headers are meaningful only for a single transport-level connection, 
-	//    and must not be retransmitted by proxies or cached.
-	r.Header.Del("Connection")
-	r.Header.Del("Keep-alive")
-	r.Header.Del("Transfer-Encoding")
-	r.Header.Del("Upgrade")
-
-	r.Header.Del("Proxy-Authenticate")
-	r.Header.Del("Proxy-Authorization")
-	r.Header.Del("Proxy-Connection")	// not standard, but curl lib use it.
 }
 
 func PrintHTTP(conn *HttpConnection) {
@@ -54,7 +54,7 @@ func (p *Proxy) ServeHTTP(wr http.ResponseWriter, r *http.Request) {
 
 	client := &http.Client{}
 
-	removeProxyHeaders(r)
+	delHopHeaders(r.Header)
 
 	req, err = http.NewRequest(r.Method, r.RequestURI, r.Body)
 	for name, value := range r.Header {
@@ -73,12 +73,18 @@ func (p *Proxy) ServeHTTP(wr http.ResponseWriter, r *http.Request) {
 	for k, v := range res.Header {
 		wr.Header().Set(k, v[0])
 	}
-
+	
+	delHopHeaders(res.Header)
 	wr.WriteHeader(res.StatusCode)
-
 	io.Copy(wr, res.Body)
 
 	PrintHTTP(conn)
+}
+
+func delHopHeaders(header http.Header) {
+	for _, h := range hopHeaders {
+		header.Del(h)
+	}
 }
 
 func main() {
